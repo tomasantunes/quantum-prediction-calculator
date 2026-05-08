@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Quantum Economics Calculator</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+        }
+
+        .event-card {
+            transition: all 0.25s ease;
+        }
+
+        .event-card.observed {
+            border: 2px solid #22c55e;
+            box-shadow: 0 0 20px rgba(34,197,94,0.35);
+        }
+
+        .probability-bar {
+            height: 25px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #334155;
+        }
+
+        .probability-fill {
+            height: 100%;
+            background: linear-gradient(90deg,#3b82f6,#06b6d4);
+            transition: width 0.4s ease;
+        }
+
+        .small-label {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .entangled-badge {
+            background: #7c3aed;
+        }
+
+        .title-glow {
+            color: #38bdf8;
+            text-shadow: 0 0 15px rgba(56,189,248,0.6);
+        }
+
+        .btn-observe {
+            width: 100%;
+        }
+
+        .event-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .footer-note {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .table-dark {
+            --bs-table-bg: #0f172a;
+        }
+
+        #strengthValue {
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container py-5">
+
+    <div class="text-center mb-5">
+        <h1 class="display-5 title-glow">Quantum Prediction Calculator</h1>
+        <p class="lead">
+            Simulate split possibilities, entangled events, and observer effects.
+        </p>
+    </div>
+
+    <!-- ADD EVENT -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h4 class="mb-4" style="color: white">Create Quantum Event</h4>
+
+            <div class="row g-3">
+
+                <div class="col-md-4">
+                    <label class="form-label">Event Name</label>
+                    <input type="text" id="eventName" class="form-control" placeholder="Description">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Initial Probability (%)</label>
+                    <input type="number" id="eventProbability" class="form-control" value="50" min="0" max="100">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Entangled With</label>
+                    <select id="entangledWith" class="form-select">
+                        <option value="">None</option>
+                    </select>
+                </div>
+
+                <div class="col-md-2 d-grid">
+                    <label class="form-label invisible">Button</label>
+                    <button class="btn btn-primary" id="addEventBtn">
+                        Add Event
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- OBSERVER CONTROLS -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h4 class="mb-3" style="color: white">Observer Effect</h4>
+
+            <div class="row g-3 align-items-end">
+
+                <div class="col-md-4">
+                    <label class="form-label" style="color: white">Observation Strength</label>
+                    <input type="range" class="form-range" min="1" max="50" value="15" id="observerStrength">
+                </div>
+
+                <div class="col-md-2">
+                    <div class="small-label">
+                        Influence:
+                    </div>
+                    <div id="strengthValue">15%</div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="alert alert-info mb-0">
+                        Observing an event increases its probability while decreasing competing possibilities.
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- EVENTS -->
+    <div id="eventsContainer" class="row g-4"></div>
+
+    <!-- MARKET STATE -->
+    <div class="card mt-5">
+        <div class="card-body">
+            <h4 class="mb-3" style="color: white">Quantum State</h4>
+
+            <div class="table-responsive">
+                <table class="table table-dark table-bordered align-middle">
+                    <thead>
+                    <tr>
+                        <th>Event</th>
+                        <th>Probability</th>
+                        <th>Observed</th>
+                        <th>Entangled</th>
+                    </tr>
+                    </thead>
+                    <tbody id="stateTableBody"></tbody>
+                </table>
+            </div>
+
+            <div class="footer-note mt-3" >
+                This calculator uses quantum-inspired concepts metaphorically:
+                split possibilities, entanglement, and observer effects.
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- JQuery -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<script>
+
+$(document).ready(function() {
+
+    let events = [];
+    let nextId = 1;
+
+    function renderEvents() {
+
+        const container = $("#eventsContainer");
+        const tableBody = $("#stateTableBody");
+
+        container.empty();
+        tableBody.empty();
+
+        events.forEach(event => {
+
+            const observedClass = event.observed ? "observed" : "";
+
+            const entangledLabel = event.entangled
+                ? `<span class="badge entangled-badge">Entangled with ${event.entangledName}</span>`
+                : `<span class="badge bg-secondary">Independent</span>`;
+
+            const card = `
+                <div class="col-lg-4">
+                    <div class="card event-card ${observedClass}">
+                        <div class="card-body">
+
+                            <div class="d-flex justify-content-between align-items-center mb-2" style="color: white">
+                                <div class="event-title">${event.name}</div>
+                                ${entangledLabel}
+                            </div>
+
+                            <div class="small-label mb-2">
+                                Probability Collapse State
+                            </div>
+
+                            <div class="probability-bar mb-2">
+                                <div class="probability-fill"
+                                     style="width:${event.probability}%">
+                                </div>
+                            </div>
+
+                            <div class="mb-3" style="color: white">
+                                <strong>${event.probability.toFixed(1)}%</strong>
+                            </div>
+
+                            <button class="btn btn-success btn-observe observe-btn"
+                                    data-id="${event.id}">
+                                Observe Event
+                            </button>
+
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            container.append(card);
+
+            tableBody.append(`
+                <tr>
+                    <td>${event.name}</td>
+                    <td>${event.probability.toFixed(1)}%</td>
+                    <td>${event.observed ? "Yes" : "No"}</td>
+                    <td>${event.entangledName || "-"}</td>
+                </tr>
+            `);
+
+        });
+
+        refreshEntangledOptions();
+    }
+
+    function refreshEntangledOptions() {
+
+        const select = $("#entangledWith");
+
+        select.find("option:not(:first)").remove();
+
+        events.forEach(event => {
+            select.append(`
+                <option value="${event.id}">
+                    ${event.name}
+                </option>
+            `);
+        });
+    }
+
+    function normalizeProbabilities() {
+
+        let total = 0;
+
+        events.forEach(e => total += e.probability);
+
+        if(total === 0) return;
+
+        events.forEach(e => {
+            e.probability = (e.probability / total) * 100;
+        });
+    }
+
+    $("#addEventBtn").click(function() {
+
+        const name = $("#eventName").val().trim();
+        const probability = parseFloat($("#eventProbability").val());
+        const entangledId = $("#entangledWith").val();
+
+        if(!name) {
+            alert("Please enter an event name.");
+            return;
+        }
+
+        const event = {
+            id: nextId++,
+            name,
+            probability,
+            observed: false,
+            entangled: null,
+            entangledName: null
+        };
+
+        if(entangledId) {
+
+            const linkedEvent = events.find(e => e.id == entangledId);
+
+            if(linkedEvent) {
+                event.entangled = linkedEvent.id;
+                event.entangledName = linkedEvent.name;
+            }
+        }
+
+        events.push(event);
+
+        normalizeProbabilities();
+
+        $("#eventName").val("");
+        $("#eventProbability").val(50);
+
+        renderEvents();
+    });
+
+    $(document).on("click", ".observe-btn", function() {
+
+        const id = parseInt($(this).data("id"));
+        const observerStrength = parseFloat($("#observerStrength").val());
+
+        const targetEvent = events.find(e => e.id === id);
+
+        if(!targetEvent) return;
+
+        targetEvent.observed = true;
+
+        // Increase observed probability
+        targetEvent.probability += observerStrength;
+
+        // Reduce competing probabilities
+        events.forEach(event => {
+
+            if(event.id !== targetEvent.id) {
+                event.probability -= observerStrength / (events.length - 1);
+
+                if(event.probability < 1) {
+                    event.probability = 1;
+                }
+            }
+        });
+
+        // Entanglement effect
+        if(targetEvent.entangled) {
+
+            const entangledEvent = events.find(
+                e => e.id === targetEvent.entangled
+            );
+
+            if(entangledEvent) {
+
+                entangledEvent.probability += observerStrength * 0.4;
+
+                entangledEvent.observed = true;
+            }
+        }
+
+        normalizeProbabilities();
+
+        renderEvents();
+    });
+
+    $("#observerStrength").on("input", function() {
+        $("#strengthValue").text($(this).val() + "%");
+    });
+
+    normalizeProbabilities();
+    renderEvents();
+
+});
+
+</script>
+
+</body>
+</html>
